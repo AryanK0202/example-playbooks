@@ -1,0 +1,14 @@
+---
+- name: SAP Server Compliance Checks
+  hosts: sap_servers
+  become: yes
+  
+  tasks:
+    - name: Get SAP Kernel Version via disp+work
+      ansible.builtin.shell: "su - prdadm -c 'disp+work -V | grep -i \"kernel release\"'"
+      register: kernel_output
+      changed_when: false
+
+    - name: Display Kernel Version
+      ansible.builtin.debug:
+        msg: "The SAP Kernel Version is: {{ kernel_output.stdout }}"
