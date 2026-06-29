@@ -1,0 +1,26 @@
+---
+- name: SAP Security Profile Compliance Check
+  hosts: sap_servers
+  become: yes
+  vars:
+    sap_sid: "PRD" # This could be passed dynamically 
+    sap_admin_user: "prdadm"
+    required_password_length: "8"
+
+  tasks:
+    - name: Query min_password_lng using sappfpar
+      ansible.builtin.shell: "su - {{ sap_admin_user }} -c 'sappfpar login/min_password_lng name={{ sap_sid }}'"
+      register: password_param_output
+      changed_when: false
+
+    - name: Extract the parameter value
+      # Using regex to grab just the number from the output string
+      ansible.builtin.set_fact:
+        actual_password_length: "{{ password_param_output.stdout | regex_search('\\d+') }}"
+
+    - name: Assert Password Length meets compliance baseline
+      ansible.builtin.assert:
+        that:
+          - actual_password_length | int >= required_password_length | int
+        fail_msg: "COMPLIANCE FAILURE: System {{ sap_sid }} password length is {{ actual_password_length }}, which is below the required {{ required_password_length }}."
+        success_msg: "System {{ sap_sid }} is compliant."
