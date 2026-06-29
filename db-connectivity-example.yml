@@ -1,0 +1,28 @@
+---
+- name: SAP Database Connectivity Health Check
+  hosts: sap_servers
+  become: yes
+  vars:
+    sap_admin_user: "prdadm"
+
+  tasks:
+    - name: Test DB Connection via R3trans
+      ansible.builtin.shell: "su - {{ sap_admin_user }} -c 'R3trans -d'"
+      register: r3trans_output
+      # R3trans returns 0 on success, anything else means DB connection issues
+      ignore_errors: true 
+      changed_when: false
+
+    - name: Evaluate R3trans Return Code
+      ansible.builtin.debug:
+        msg: >
+          {% if r3trans_output.rc == 0 %}
+          SUCCESS: SAP Application Server can communicate with the Database (RC=0000).
+          {% else %}
+          CRITICAL ERROR: Database connection failed! Check the database state and listener.
+          {% endif %}
+          
+    - name: Fail the playbook if DB connection is broken
+      ansible.builtin.fail:
+        msg: "Database connection failed. R3trans output: {{ r3trans_output.stdout }}"
+      when: r3trans_output.rc != 0
